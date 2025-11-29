@@ -16,6 +16,7 @@ from .serializers import (
     TVProgramSerializer
 )
 from .services.streaming_availability import StreamingAvailabilityAPI
+from .services.football_api import FootballAPI
 
 
 class StreamingPlatformListView(generics.ListAPIView):
@@ -228,4 +229,129 @@ def get_new_shows(request):
     else:
         return Response({
             'error': 'Failed to fetch new shows'
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
+# Football API Views
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def test_football_api(request):
+    """
+    Test endpoint for Football API.
+    """
+    api = FootballAPI()
+
+    # Test by fetching today's Premier League fixtures
+    fixtures = api.get_premier_league_fixtures()
+
+    if fixtures:
+        return Response({
+            'status': 'success',
+            'message': 'Successfully connected to Football API!',
+            'data': fixtures
+        })
+    else:
+        return Response({
+            'status': 'error',
+            'message': 'Failed to connect to Football API'
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_premier_league_matches(request):
+    """
+    Get Premier League matches.
+    Query params:
+    - date (YYYY-MM-DD)
+    - next (number of upcoming matches)
+    - season (year)
+    """
+    date = request.query_params.get('date')
+    next_matches = request.query_params.get('next')
+    season = request.query_params.get('season')
+
+    api = FootballAPI()
+
+    if next_matches:
+        fixtures = api.get_premier_league_fixtures(next_matches=int(next_matches))
+    elif date:
+        fixtures = api.get_premier_league_fixtures(date=date)
+    elif season:
+        fixtures = api.get_premier_league_fixtures(season=int(season))
+    else:
+        # Default: today's matches
+        fixtures = api.get_premier_league_fixtures()
+
+    if fixtures:
+        return Response(fixtures)
+    else:
+        return Response({
+            'error': 'Failed to fetch Premier League fixtures'
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_live_football(request):
+    """
+    Get live football matches.
+    Query params: league_id (optional)
+    """
+    league_id = request.query_params.get('league_id')
+
+    api = FootballAPI()
+    fixtures = api.get_live_matches(league_id=int(league_id) if league_id else None)
+
+    if fixtures:
+        return Response(fixtures)
+    else:
+        return Response({
+            'error': 'Failed to fetch live matches'
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_todays_football(request):
+    """
+    Get today's football matches.
+    Query params: league_id (optional, e.g., 39 for Premier League)
+    """
+    league_id = request.query_params.get('league_id')
+
+    api = FootballAPI()
+    fixtures = api.get_todays_fixtures(league_id=int(league_id) if league_id else None)
+
+    if fixtures:
+        return Response(fixtures)
+    else:
+        return Response({
+            'error': 'Failed to fetch today\'s matches'
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def search_football_team(request):
+    """
+    Search for a football team.
+    Query params: name (required)
+    """
+    team_name = request.query_params.get('name')
+
+    if not team_name:
+        return Response({
+            'error': 'Team name is required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    api = FootballAPI()
+    teams = api.search_team(team_name)
+
+    if teams:
+        return Response(teams)
+    else:
+        return Response({
+            'error': 'Failed to search teams'
         }, status=status.HTTP_503_SERVICE_UNAVAILABLE)

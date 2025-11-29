@@ -168,6 +168,9 @@ CELERY_TIMEZONE = TIME_ZONE
 # RapidAPI Configuration
 RAPIDAPI_KEY = config('RAPIDAPI_KEY', default='')
 
+# API-Football Configuration
+API_FOOTBALL_KEY = config('API_FOOTBALL_KEY', default='')
+
 # Logging
 LOGGING = {
     'version': 1,

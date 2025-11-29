@@ -14,6 +14,12 @@ from .views import (
     search_streaming_shows,
     get_show_by_id,
     get_new_shows,
+    # Football API views
+    test_football_api,
+    get_premier_league_matches,
+    get_live_football,
+    get_todays_football,
+    search_football_team,
 )
 
 app_name = 'content'
@@ -45,4 +51,11 @@ urlpatterns = [
     path('api/search/', search_streaming_shows, name='search_shows'),
     path('api/show/<str:show_type>/<str:show_id>/', get_show_by_id, name='show_by_id'),
     path('api/new/', get_new_shows, name='new_shows'),
+
+    # Football API endpoints
+    path('api/football/test/', test_football_api, name='test_football_api'),
+    path('api/football/premier-league/', get_premier_league_matches, name='premier_league_matches'),
+    path('api/football/live/', get_live_football, name='live_football'),
+    path('api/football/today/', get_todays_football, name='todays_football'),
+    path('api/football/search-team/', search_football_team, name='search_football_team'),
 ]
