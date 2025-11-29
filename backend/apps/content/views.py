@@ -17,6 +17,7 @@ from .serializers import (
 )
 from .services.streaming_availability import StreamingAvailabilityAPI
 from .services.football_api import FootballAPI
+from .services.movie_recommender import MovieRecommenderAPI
 
 
 class StreamingPlatformListView(generics.ListAPIView):
@@ -354,4 +355,173 @@ def search_football_team(request):
     else:
         return Response({
             'error': 'Failed to search teams'
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
+# AI Movie Recommender API Views
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def test_movie_recommender(request):
+    """
+    Test endpoint for AI Movie Recommender API.
+    """
+    api = MovieRecommenderAPI()
+
+    # Test with a simple query
+    recommendations = api.search_movies("action movies")
+
+    if recommendations:
+        return Response({
+            'status': 'success',
+            'message': 'Successfully connected to AI Movie Recommender API!',
+            'data': recommendations
+        })
+    else:
+        return Response({
+            'status': 'error',
+            'message': 'Failed to connect to AI Movie Recommender API'
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def search_movie_recommendations(request):
+    """
+    Search for movie recommendations.
+    Query params: q (required) - search query like "10s sad movies", "action thriller"
+    """
+    query = request.query_params.get('q')
+
+    if not query:
+        return Response({
+            'error': 'Query parameter "q" is required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    api = MovieRecommenderAPI()
+    recommendations = api.search_movies(query)
+
+    if recommendations:
+        return Response(recommendations)
+    else:
+        return Response({
+            'error': 'Failed to fetch movie recommendations'
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_recommendations_by_mood(request):
+    """
+    Get movie recommendations by mood.
+    Query params:
+    - mood (required): e.g., "sad", "happy", "scary", "romantic"
+    - decade (optional): e.g., "10s", "90s", "80s"
+    """
+    mood = request.query_params.get('mood')
+    decade = request.query_params.get('decade')
+
+    if not mood:
+        return Response({
+            'error': 'Mood parameter is required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    api = MovieRecommenderAPI()
+    recommendations = api.get_recommendations_by_mood(mood, decade)
+
+    if recommendations:
+        return Response(recommendations)
+    else:
+        return Response({
+            'error': 'Failed to fetch recommendations'
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_recommendations_by_genre(request):
+    """
+    Get movie recommendations by genre.
+    Query params:
+    - genre (required): e.g., "action", "comedy", "thriller"
+    - year (optional): specific year
+    """
+    genre = request.query_params.get('genre')
+    year = request.query_params.get('year')
+
+    if not genre:
+        return Response({
+            'error': 'Genre parameter is required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    api = MovieRecommenderAPI()
+    recommendations = api.get_recommendations_by_genre(
+        genre,
+        int(year) if year else None
+    )
+
+    if recommendations:
+        return Response(recommendations)
+    else:
+        return Response({
+            'error': 'Failed to fetch recommendations'
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_family_recommendations(request):
+    """
+    Get family-friendly movie recommendations.
+    """
+    api = MovieRecommenderAPI()
+    recommendations = api.get_family_recommendations()
+
+    if recommendations:
+        return Response(recommendations)
+    else:
+        return Response({
+            'error': 'Failed to fetch family recommendations'
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_kids_recommendations(request):
+    """
+    Get kids movie recommendations.
+    """
+    api = MovieRecommenderAPI()
+    recommendations = api.get_kids_recommendations()
+
+    if recommendations:
+        return Response(recommendations)
+    else:
+        return Response({
+            'error': 'Failed to fetch kids recommendations'
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_movie_id(request):
+    """
+    Get TMDB and IMDb IDs for a movie by title.
+    Query params: title (required)
+    """
+    title = request.query_params.get('title')
+
+    if not title:
+        return Response({
+            'error': 'Title parameter is required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    api = MovieRecommenderAPI()
+    movie_data = api.get_movie_id(title)
+
+    if movie_data:
+        return Response(movie_data)
+    else:
+        return Response({
+            'error': f'Failed to fetch movie ID for: {title}'
         }, status=status.HTTP_503_SERVICE_UNAVAILABLE)

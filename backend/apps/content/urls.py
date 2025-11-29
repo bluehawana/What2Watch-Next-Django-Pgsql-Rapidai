@@ -20,6 +20,14 @@ from .views import (
     get_live_football,
     get_todays_football,
     search_football_team,
+    # Movie Recommender API views
+    test_movie_recommender,
+    search_movie_recommendations,
+    get_recommendations_by_mood,
+    get_recommendations_by_genre,
+    get_family_recommendations,
+    get_kids_recommendations,
+    get_movie_id,
 )
 
 app_name = 'content'
@@ -58,4 +66,13 @@ urlpatterns = [
     path('api/football/live/', get_live_football, name='live_football'),
     path('api/football/today/', get_todays_football, name='todays_football'),
     path('api/football/search-team/', search_football_team, name='search_football_team'),
+
+    # Movie Recommender API endpoints
+    path('api/movies/test/', test_movie_recommender, name='test_movie_recommender'),
+    path('api/movies/search/', search_movie_recommendations, name='search_movie_recommendations'),
+    path('api/movies/mood/', get_recommendations_by_mood, name='recommendations_by_mood'),
+    path('api/movies/genre/', get_recommendations_by_genre, name='recommendations_by_genre'),
+    path('api/movies/family/', get_family_recommendations, name='family_recommendations'),
+    path('api/movies/kids/', get_kids_recommendations, name='kids_recommendations'),
+    path('api/movies/id/', get_movie_id, name='get_movie_id'),
 ]
