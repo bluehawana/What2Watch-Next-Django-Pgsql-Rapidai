@@ -7,7 +7,13 @@ from .views import (
     MovieListView, MovieDetailView,
     TVShowListView, TVShowDetailView,
     SportsEventListView, SportsEventDetailView,
-    TVChannelListView, TVProgramListView
+    TVChannelListView, TVProgramListView,
+    # Streaming API views
+    test_streaming_api,
+    get_streaming_services,
+    search_streaming_shows,
+    get_show_by_id,
+    get_new_shows,
 )
 
 app_name = 'content'
@@ -32,4 +38,11 @@ urlpatterns = [
     # TV Channels and Programs
     path('tv-channels/', TVChannelListView.as_view(), name='tv_channels'),
     path('tv-programs/', TVProgramListView.as_view(), name='tv_programs'),
+
+    # Streaming Availability API endpoints
+    path('api/test/', test_streaming_api, name='test_streaming_api'),
+    path('api/services/', get_streaming_services, name='streaming_services'),
+    path('api/search/', search_streaming_shows, name='search_shows'),
+    path('api/show/<str:show_type>/<str:show_id>/', get_show_by_id, name='show_by_id'),
+    path('api/new/', get_new_shows, name='new_shows'),
 ]
