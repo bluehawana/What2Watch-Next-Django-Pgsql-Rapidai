@@ -9,18 +9,22 @@ Help users discover what to watch across multiple platforms with personalized re
 ## Tech Stack
 
 ### Frontend
+
 - **Framework**: Next.js 14+ (React)
 - **Styling**: TailwindCSS
 - **State Management**: React Context / Zustand
 - **UI Components**: shadcn/ui
 
 ### Backend
+
 - **Framework**: Django 5.0+ with Django REST Framework
 - **Database**: PostgreSQL 15+
+
 - **API Integration**: RapidAPI for content sources
 - **Authentication**: Django JWT
 
 ### Future Plans
+
 - Android app (Kotlin)
 - iOS app (Swift)
 - Push notifications
@@ -40,12 +44,14 @@ what2watch/
 ## Getting Started
 
 ### Prerequisites
+
 - Python 3.11+
 - Node.js 18+
 - PostgreSQL 15+
 - Docker (optional)
 
 ### Backend Setup
+
 ```bash
 cd backend
 python -m venv venv
@@ -57,6 +63,7 @@ python manage.py runserver
 ```
 
 ### Frontend Setup
+
 ```bash
 cd frontend
 npm install
@@ -64,6 +71,7 @@ npm run dev
 ```
 
 ### Docker Setup
+
 ```bash
 docker-compose up -d
 ```

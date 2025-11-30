@@ -18,6 +18,8 @@ from .serializers import (
 from .services.streaming_availability import StreamingAvailabilityAPI
 from .services.football_api import FootballAPI
 from .services.movie_recommender import MovieRecommenderAPI
+from .services.top5_leagues import Top5LeaguesService
+from .services.premier_league_api import PremierLeagueAPI
 
 
 class StreamingPlatformListView(generics.ListAPIView):
@@ -39,7 +41,8 @@ class MovieListView(generics.ListAPIView):
     queryset = Movie.objects.all()
     serializer_class = MovieSerializer
     permission_classes = [AllowAny]
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend,
+                       filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['genres', 'platforms', 'release_date']
     search_fields = ['title', 'original_title', 'description']
     ordering_fields = ['release_date', 'rating', 'title']
@@ -58,7 +61,8 @@ class TVShowListView(generics.ListAPIView):
     queryset = TVShow.objects.all()
     serializer_class = TVShowSerializer
     permission_classes = [AllowAny]
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend,
+                       filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['genres', 'platforms', 'status']
     search_fields = ['title', 'original_title', 'description']
     ordering_fields = ['first_air_date', 'rating', 'title']
@@ -77,7 +81,8 @@ class SportsEventListView(generics.ListAPIView):
     queryset = SportsEvent.objects.all()
     serializer_class = SportsEventSerializer
     permission_classes = [AllowAny]
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend,
+                       filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['sport_type', 'league', 'status']
     search_fields = ['title', 'home_team', 'away_team', 'league']
     ordering_fields = ['event_date']
@@ -233,6 +238,132 @@ def get_new_shows(request):
         }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_trending_shows(request):
+    """
+    Get trending shows on streaming platforms sorted by popularity.
+
+    Query params:
+    - country: Country code (default: 'us')
+    - catalogs: Comma-separated streaming services (e.g., 'netflix,prime,apple,hbo,disney,hulu')
+    - show_type: 'movie' or 'series' (optional, default: both)
+    - time_period: '1day', '1week', '1month', '1year', 'alltime' (default: '1week')
+
+    Examples:
+    - GET /api/content/api/trending/?catalogs=netflix&show_type=movie&time_period=alltime
+      → Most popular movies on Netflix US (all time)
+    - GET /api/content/api/trending/?country=gb&catalogs=prime,disney&show_type=series&time_period=1week
+      → Trending series on Prime & Disney+ UK (last 7 days)
+    - GET /api/content/api/trending/?catalogs=apple,hbo&time_period=1month
+      → Popular shows on Apple TV+ and HBO Max (last month)
+    """
+    country = request.query_params.get('country', 'us')
+    catalogs_param = request.query_params.get('catalogs')
+    show_type = request.query_params.get('show_type')
+    time_period = request.query_params.get('time_period', '1week')
+
+    catalogs = catalogs_param.split(',') if catalogs_param else None
+
+    api = StreamingAvailabilityAPI()
+    results = api.get_trending(
+        country=country,
+        catalogs=catalogs,
+        show_type=show_type,
+        time_period=time_period
+    )
+
+    if results:
+        return Response({
+            'country': country,
+            'catalogs': catalogs,
+            'show_type': show_type,
+            'time_period': time_period,
+            'results': results
+        })
+    else:
+        return Response({
+            'error': 'Failed to fetch trending shows'
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def search_shows_advanced(request):
+    """
+    Advanced search with filters and sorting options.
+
+    Query params:
+    - country: Country code (default: 'us')
+    - catalogs: Comma-separated streaming services
+    - show_type: 'movie' or 'series'
+    - genres: Comma-separated genres (e.g., 'action,comedy,drama')
+    - order_by: Sort field - 'original_title', 'release_year', 'popularity_1day',
+                'popularity_1week', 'popularity_1month', 'popularity_1year', 'popularity_alltime'
+    - order_direction: 'asc' or 'desc' (default: 'desc')
+    - year_min: Minimum release year
+    - year_max: Maximum release year
+    - rating_min: Minimum rating (0-100)
+    - rating_max: Maximum rating (0-100)
+    - keyword: Search keyword
+    - cursor: Pagination cursor
+
+    Examples:
+    - GET /api/content/api/search/advanced/?catalogs=netflix&order_by=popularity_alltime&show_type=movie
+      → All-time most popular movies on Netflix
+    - GET /api/content/api/search/advanced/?catalogs=apple&genres=drama,thriller&order_by=popularity_1week
+      → Trending drama/thriller on Apple TV+ this week
+    """
+    country = request.query_params.get('country', 'us')
+    catalogs_param = request.query_params.get('catalogs')
+    show_type = request.query_params.get('show_type')
+    genres_param = request.query_params.get('genres')
+    order_by = request.query_params.get('order_by', 'popularity_1week')
+    order_direction = request.query_params.get('order_direction', 'desc')
+    year_min = request.query_params.get('year_min')
+    year_max = request.query_params.get('year_max')
+    rating_min = request.query_params.get('rating_min')
+    rating_max = request.query_params.get('rating_max')
+    keyword = request.query_params.get('keyword')
+    cursor = request.query_params.get('cursor')
+
+    catalogs = catalogs_param.split(',') if catalogs_param else None
+    genres = genres_param.split(',') if genres_param else None
+
+    api = StreamingAvailabilityAPI()
+    results = api.search_by_filters(
+        country=country,
+        catalogs=catalogs,
+        show_type=show_type,
+        genres=genres,
+        order_by=order_by,
+        order_direction=order_direction,
+        year_min=int(year_min) if year_min else None,
+        year_max=int(year_max) if year_max else None,
+        rating_min=int(rating_min) if rating_min else None,
+        rating_max=int(rating_max) if rating_max else None,
+        keyword=keyword,
+        cursor=cursor
+    )
+
+    if results:
+        return Response({
+            'country': country,
+            'filters': {
+                'catalogs': catalogs,
+                'show_type': show_type,
+                'genres': genres,
+                'order_by': order_by,
+                'order_direction': order_direction
+            },
+            'results': results
+        })
+    else:
+        return Response({
+            'error': 'Failed to search shows'
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
 # Football API Views
 
 @api_view(['GET'])
@@ -276,7 +407,8 @@ def get_premier_league_matches(request):
     api = FootballAPI()
 
     if next_matches:
-        fixtures = api.get_premier_league_fixtures(next_matches=int(next_matches))
+        fixtures = api.get_premier_league_fixtures(
+            next_matches=int(next_matches))
     elif date:
         fixtures = api.get_premier_league_fixtures(date=date)
     elif season:
@@ -303,7 +435,8 @@ def get_live_football(request):
     league_id = request.query_params.get('league_id')
 
     api = FootballAPI()
-    fixtures = api.get_live_matches(league_id=int(league_id) if league_id else None)
+    fixtures = api.get_live_matches(
+        league_id=int(league_id) if league_id else None)
 
     if fixtures:
         return Response(fixtures)
@@ -323,7 +456,8 @@ def get_todays_football(request):
     league_id = request.query_params.get('league_id')
 
     api = FootballAPI()
-    fixtures = api.get_todays_fixtures(league_id=int(league_id) if league_id else None)
+    fixtures = api.get_todays_fixtures(
+        league_id=int(league_id) if league_id else None)
 
     if fixtures:
         return Response(fixtures)
@@ -525,3 +659,307 @@ def get_movie_id(request):
         return Response({
             'error': f'Failed to fetch movie ID for: {title}'
         }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
+# Trending & Popularity Views
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_trending_shows(request):
+    """
+    Get trending shows sorted by popularity.
+
+    Query params:
+    - country: Country code (default: 'us')
+    - catalogs: Comma-separated streaming services (e.g., 'netflix,prime,apple,hbo,disney,hulu')
+    - show_type: 'movie' or 'series' (optional, default: both)
+    - time_period: '1day', '1week', '1month', '1year', 'alltime' (default: '1week')
+
+    Examples:
+    - /api/content/api/trending/?catalogs=netflix&show_type=series&time_period=1week
+    - /api/content/api/trending/?country=gb&catalogs=prime,disney&time_period=1month
+    - /api/content/api/trending/?catalogs=apple,hbo&show_type=movie&time_period=alltime
+    """
+    country = request.query_params.get('country', 'us')
+    catalogs_str = request.query_params.get('catalogs')
+    show_type = request.query_params.get('show_type')
+    time_period = request.query_params.get('time_period', '1week')
+
+    catalogs = catalogs_str.split(',') if catalogs_str else None
+
+    api = StreamingAvailabilityAPI()
+    results = api.get_trending(
+        country=country,
+        catalogs=catalogs,
+        show_type=show_type,
+        time_period=time_period
+    )
+
+    if results:
+        return Response({
+            'country': country,
+            'catalogs': catalogs,
+            'show_type': show_type,
+            'time_period': time_period,
+            'results': results
+        })
+    else:
+        return Response({
+            'error': 'Failed to fetch trending shows'
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def search_shows_by_filters(request):
+    """
+    Advanced search with filters and sorting by popularity.
+
+    Query params:
+    - country: Country code (default: 'us')
+    - catalogs: Comma-separated streaming services
+    - show_type: 'movie' or 'series'
+    - genres: Comma-separated genres (e.g., 'action,comedy,drama')
+    - order_by: Sort field (default: 'popularity_1year')
+        Options: 'original_title', 'release_year', 'popularity_1day',
+                 'popularity_1week', 'popularity_1month', 'popularity_1year', 'popularity_alltime'
+    - order_direction: 'asc' or 'desc' (default: 'desc')
+    - year_min: Minimum release year
+    - year_max: Maximum release year
+    - rating_min: Minimum rating (0-100)
+    - rating_max: Maximum rating (0-100)
+    - keyword: Search keyword
+    - cursor: Pagination cursor
+
+    Examples:
+    - /api/content/api/search/filters/?catalogs=netflix&order_by=popularity_alltime&show_type=movie
+    - /api/content/api/search/filters/?country=gb&catalogs=prime,disney&order_by=popularity_1week&show_type=series
+    """
+    country = request.query_params.get('country', 'us')
+    catalogs_str = request.query_params.get('catalogs')
+    show_type = request.query_params.get('show_type')
+    genres_str = request.query_params.get('genres')
+    order_by = request.query_params.get('order_by', 'popularity_1year')
+    order_direction = request.query_params.get('order_direction', 'desc')
+    year_min = request.query_params.get('year_min')
+    year_max = request.query_params.get('year_max')
+    rating_min = request.query_params.get('rating_min')
+    rating_max = request.query_params.get('rating_max')
+    keyword = request.query_params.get('keyword')
+    cursor = request.query_params.get('cursor')
+
+    catalogs = catalogs_str.split(',') if catalogs_str else None
+    genres = genres_str.split(',') if genres_str else None
+
+    api = StreamingAvailabilityAPI()
+    results = api.search_by_filters(
+        country=country,
+        catalogs=catalogs,
+        show_type=show_type,
+        genres=genres,
+        order_by=order_by,
+        order_direction=order_direction,
+        year_min=int(year_min) if year_min else None,
+        year_max=int(year_max) if year_max else None,
+        rating_min=int(rating_min) if rating_min else None,
+        rating_max=int(rating_max) if rating_max else None,
+        keyword=keyword,
+        cursor=cursor
+    )
+
+    if results:
+        return Response(results)
+    else:
+        return Response({
+            'error': 'Failed to search shows'
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_show_with_episodes(request, show_id):
+    """
+    Get show details with episode-level information.
+
+    URL params:
+    - show_id: Show ID (IMDB ID like 'tt10919420' or internal ID)
+
+    Query params:
+    - country: Country code (default: 'us')
+    - series_granularity: 'show', 'season', or 'episode' (default: 'episode')
+
+    Example:
+    - /api/content/api/show/tt10919420/?series_granularity=episode  (Squid Game with all episodes)
+    """
+    country = request.query_params.get('country', 'us')
+    series_granularity = request.query_params.get(
+        'series_granularity', 'episode')
+
+    api = StreamingAvailabilityAPI()
+    show = api.get_show_by_id(
+        show_id=show_id,
+        country=country,
+        series_granularity=series_granularity
+    )
+
+    if show:
+        return Response(show)
+    else:
+        return Response({
+            'error': f'Failed to fetch show with ID: {show_id}'
+        }, status=status.HTTP_404_NOT_FOUND)
+
+
+# Top 5 European Leagues Views
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_top5_matches(request):
+    """
+    Get matches from top 5 European leagues with Swedish time and broadcast info.
+
+    Query params:
+    - date: Specific date (YYYY-MM-DD)
+    - league: League filter (premier_league, la_liga, bundesliga, serie_a, ligue_1)
+    - days_ahead: Number of days to look ahead (default: 7)
+
+    Examples:
+    - GET /api/content/football/top5/
+    - GET /api/content/football/top5/?date=2024-12-01
+    - GET /api/content/football/top5/?league=premier_league
+    - GET /api/content/football/top5/?days_ahead=3
+    """
+    date = request.query_params.get('date')
+    league = request.query_params.get('league')
+    days_ahead = request.query_params.get('days_ahead', 7)
+
+    try:
+        days_ahead = int(days_ahead)
+    except (ValueError, TypeError):
+        days_ahead = 7
+
+    service = Top5LeaguesService()
+    result = service.get_matches(
+        date=date, league=league, days_ahead=days_ahead)
+
+    if 'error' in result:
+        return Response(result, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response(result)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_top5_today(request):
+    """
+    Get today's matches from top 5 European leagues.
+
+    Query params:
+    - league: Optional league filter
+
+    Examples:
+    - GET /api/content/football/top5/today/
+    - GET /api/content/football/top5/today/?league=la_liga
+    """
+    league = request.query_params.get('league')
+
+    service = Top5LeaguesService()
+    result = service.get_todays_matches(league=league)
+
+    if 'error' in result:
+        return Response(result, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response(result)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_top5_live(request):
+    """
+    Get live matches from top 5 European leagues.
+
+    Examples:
+    - GET /api/content/football/top5/live/
+    """
+    service = Top5LeaguesService()
+    result = service.get_live_matches()
+
+    return Response(result)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_top5_leagues_info(request):
+    """
+    Get information about the top 5 European leagues.
+
+    Returns league names, IDs, countries, and broadcast channels.
+    """
+    from .services.broadcast_service import BroadcastService
+
+    leagues = []
+    for key, league_id in Top5LeaguesService.LEAGUE_IDS.items():
+        league_info = Top5LeaguesService.LEAGUE_NAMES.get(league_id, {})
+        channels = BroadcastService.get_broadcast_channels(league_id)
+
+        leagues.append({
+            'key': key,
+            'id': league_id,
+            'name': league_info.get('name', ''),
+            'country': league_info.get('country', ''),
+            'broadcast_channels': channels
+        })
+
+    return Response({
+        'leagues': leagues,
+        'valid_filters': Top5LeaguesService.get_valid_league_filters()
+    })
+
+
+# Premier League Upcoming Matches Views
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_pl_upcoming(request):
+    """
+    Get upcoming Premier League matches (future only, no historical).
+
+    Query params:
+    - days: Number of days ahead (default: 7, max: 30)
+
+    Returns matches with Swedish time and broadcast channels.
+    """
+    days = request.query_params.get('days', 7)
+    try:
+        days = min(int(days), 30)
+    except (ValueError, TypeError):
+        days = 7
+
+    api = PremierLeagueAPI()
+    result = api.get_upcoming_matches(days_ahead=days)
+
+    return Response(result)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_pl_today(request):
+    """
+    Get today's Premier League matches.
+    """
+    api = PremierLeagueAPI()
+    result = api.get_todays_matches()
+
+    return Response(result)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_pl_this_week(request):
+    """
+    Get this week's Premier League matches.
+    """
+    api = PremierLeagueAPI()
+    result = api.get_this_weeks_matches()
+
+    return Response(result)

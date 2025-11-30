@@ -90,7 +90,8 @@ class FootballAPI:
         date: Optional[str] = None,
         team_id: Optional[int] = None,
         status: Optional[str] = None,
-        next: Optional[int] = None
+        next: Optional[int] = None,
+        live: Optional[str] = None
     ) -> Optional[Dict]:
         """
         Get fixtures/matches.
@@ -102,6 +103,7 @@ class FootballAPI:
             team_id: Team ID
             status: Match status (NS, LIVE, FT, etc.)
             next: Get next N matches for a team
+            live: Get live matches - 'all' for all live matches, or league_id for specific league
 
         Returns:
             Fixtures data
@@ -121,27 +123,31 @@ class FootballAPI:
             params['status'] = status
         if next:
             params['next'] = next
+        if live:
+            params['live'] = live
 
         return self._make_request(endpoint, params)
 
-    def get_todays_fixtures(self, league_id: Optional[int] = None) -> Optional[Dict]:
+    def get_todays_fixtures(self, league_id: Optional[int] = None, season: Optional[int] = None) -> Optional[Dict]:
         """
         Get today's fixtures.
 
         Args:
             league_id: Optional league ID to filter
+            season: Season year (defaults to current year)
 
         Returns:
             Today's fixtures
         """
         today = datetime.now().strftime('%Y-%m-%d')
-        cache_key = f"football_today_{league_id}_{today}"
+        current_season = season or datetime.now().year
+        cache_key = f"football_today_{league_id}_{current_season}_{today}"
         cached_data = cache.get(cache_key)
 
         if cached_data:
             return cached_data
 
-        data = self.get_fixtures(league_id=league_id, date=today)
+        data = self.get_fixtures(league_id=league_id, season=current_season, date=today)
 
         if data:
             # Cache for 1 hour
@@ -197,7 +203,20 @@ class FootballAPI:
         Returns:
             Live matches
         """
-        return self.get_fixtures(league_id=league_id, status='LIVE')
+        # API-Football 'live' parameter only accepts 'all', not individual league IDs
+        # We get all live matches and filter client-side if needed
+        all_live = self.get_fixtures(live='all')
+
+        # If league_id specified, filter the results
+        if league_id and all_live and 'response' in all_live:
+            filtered_response = [
+                match for match in all_live['response']
+                if match.get('league', {}).get('id') == league_id
+            ]
+            all_live['response'] = filtered_response
+            all_live['results'] = len(filtered_response)
+
+        return all_live
 
     def get_team_info(self, team_id: int) -> Optional[Dict]:
         """
